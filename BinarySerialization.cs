@@ -12,26 +12,50 @@ namespace Serialization
         public static byte[] Serialize<T>(T t, bool extraInfo = false)
         {
             var stream = new MemoryStream();
-            var dataInfo = SerializeDataInfo.Parse(t);
+            var dataInfo = SerializeTypeInfo.Parse(t);
 
             dataInfo.WriteToStream(stream, extraInfo);
             //WriteData
+
+            WriteData(stream, t, dataInfo);
+
+            return stream.ToArray();
+        }
+
+
+        private static void WriteData<T>(Stream stream, T t, SerializeTypeInfo dataInfo){
+            WriteData(stream,t,typeof(T),dataInfo);
+        }
+
+        private static void WriteData(Stream stream, object t,Type type, SerializeTypeInfo dataInfo)
+        {
+            if(t == null){
+                stream.WriteBool(false);
+                return;
+            }
+            else{
+                stream.WriteBool(true);
+            }
+
             var finfo = dataInfo.FieldData;
+            var refinfo = SerializeTypeInfo.GetFieldInfos(type);
             for (var i = 0; i < finfo.Count; i++)
             {
                 var fdata = finfo[i];
+
+                var fvalue = refinfo[i].GetValue(t);
                 if (fdata.IsPrimitive)
                 {
                     if (fdata.IsArray)
                     {
-                        if (fdata.Value == null)
+                        if (fvalue == null)
                         {
                             stream.WriteBool(false);
                         }
                         else
                         {
                             stream.WriteBool(true);
-                            var array = fdata.Value as Array;
+                            var array = fvalue as Array;
                             stream.WriteUInt32((uint)array.Length);
                             if (array.Length != 0)
                             {
@@ -41,17 +65,113 @@ namespace Serialization
                     }
                     else
                     {
-                        WritePrimitiveData(stream, fdata.TypeEnum, fdata.Value);
+                        Console.WriteLine(">"+ fdata.TypeEnum +" "+fvalue);
+                        WritePrimitiveData(stream, fdata.TypeEnum, fvalue);
                     }
                 }
                 else
                 {
-                    throw new Exception();
+                    if (fdata.IsArray)
+                    {
+                        throw new Exception();
+                    }
+                    else
+                    {
+                        if(fvalue == null){
+                            stream.WriteBool(false);
+                        }
+                        else{
+                            stream.WriteBool(true);
+                            var customTypeIndex = fdata.CustomTypeIndex;
+                            var customTypeInfo = dataInfo.CustomDataTypeInfo[customTypeIndex];
+                            if (customTypeInfo == null) throw new Exception("Custom datatype info missing");
+                            //write value
+                            WriteData(stream, fvalue,fvalue.GetType(), customTypeInfo);
+                        }
+                    }
                 }
             }
-
-            return stream.ToArray();
         }
+
+        public static T Deserialize<T>(byte[] data)
+        {
+            return Deserialize<T>(new MemoryStream(data));
+        }
+
+        public static T Deserialize<T>(Stream stream)
+        {
+            var dataInfo = SerializeTypeInfo.ReadFromStream<T>(stream);
+            var refInfo = SerializeTypeInfo.Parse<T>();
+            if(!refInfo.Verify(dataInfo)){
+                throw new Exception("Invalid type info");
+            }
+            return ReadData<T>(stream,refInfo);
+        }
+
+        private static T ReadData<T>(Stream stream,SerializeTypeInfo dataInfo){
+            return (T)ReadData(typeof(T),stream,dataInfo);
+        }
+
+        private static object ReadData(Type type,Stream stream,SerializeTypeInfo dataInfo){
+            bool objNotNull = stream.ReadBool();
+            if(!objNotNull){
+                return null;
+            }
+            var fieldInfo = SerializeTypeInfo.GetFieldInfos(type);
+            object t = Activator.CreateInstance(type);
+
+            var finfo = dataInfo.FieldData;
+            for (var i = 0; i < finfo.Count; i++)
+            {
+                var fdata = finfo[i];
+                if (fdata.IsPrimitive)
+                {
+                    if (fdata.IsArray)
+                    {
+                        bool notNull = stream.ReadBool();
+                        if (notNull == false)
+                        {
+                            fieldInfo[i].SetValue(t, null);
+                        }
+                        else
+                        {
+                            var length = stream.ReadUInt32();
+                            var ary = ReadPrimitiveDataArray(stream, fdata.TypeEnum, (int)length);
+                            fieldInfo[i].SetValue(t, ary);
+                        }
+                    }
+                    else
+                    {
+                        var val = ReadPrimitiveData(stream, fdata.TypeEnum);
+                        fieldInfo[i].SetValue(t, val);
+                    }
+                }
+                else
+                {
+                    if (fdata.IsArray)
+                    {
+                        throw new Exception();
+                    }
+                    else
+                    {
+                        var notNull =stream.ReadBool();
+                        if(notNull){
+                            var customTypeIndex = fdata.CustomTypeIndex;
+                            var customTypeInfo = dataInfo.CustomDataTypeInfo[customTypeIndex];
+                            if (customTypeInfo == null) throw new Exception("Custom datatype info missing");
+                            var eobj = ReadData(fdata.FieldType,stream,customTypeInfo);
+                            fieldInfo[i].SetValue(t,eobj);
+                        }
+                        else{
+                            fieldInfo[i].SetValue(t,null);
+                        }
+                        
+                    }
+                }
+            }
+            return t;
+        }
+
 
         private static object ReadPrimitiveData(Stream s, SerializeTypeEnum type)
         {
@@ -201,14 +321,15 @@ namespace Serialization
             }
         }
 
-        public static Array ReadPrimitiveDataArray(Stream s,SerializeTypeEnum type,int length){
-             switch (type)
+        public static Array ReadPrimitiveDataArray(Stream s, SerializeTypeEnum type, int length)
+        {
+            switch (type)
             {
                 case SerializeTypeEnum.Bool:
                     return s.ReadToArray<bool>(length);
                 case SerializeTypeEnum.Byte:
                     byte[] temp = new byte[length];
-                    s.Read(temp,0,length);
+                    s.Read(temp, 0, length);
                     return temp;
                 case SerializeTypeEnum.Double:
                     return s.ReadToArray<double>(length);
@@ -227,8 +348,9 @@ namespace Serialization
                 case SerializeTypeEnum.UInt64:
                     return s.ReadToArray<UInt64>(length);
                 case SerializeTypeEnum.String:
-                    var ary= new string[length];
-                    for(var i=0;i<length;i++){
+                    var ary = new string[length];
+                    for (var i = 0; i < length; i++)
+                    {
                         ary[i] = s.ReadString(Encoding.UTF8);
                     }
                     return ary;
@@ -237,51 +359,7 @@ namespace Serialization
             }
         }
 
-
-        public static T Deserialize<T>(byte[] data)
-        {
-            return Deserialize<T>(new MemoryStream(data));
-        }
-
-        public static T Deserialize<T>(Stream stream)
-        {
-
-            var dataInfo = SerializeDataInfo.ReadFromStream<T>(stream);
-            var type = typeof(T);
-            var fieldInfo = SerializeDataInfo.GetFieldInfos(type);
-            T t = (T)Activator.CreateInstance(type);
-
-
-            var finfo = dataInfo.FieldData;
-            for (var i = 0; i < finfo.Count; i++)
-            {
-                var fdata = finfo[i];
-                if (fdata.IsPrimitive)
-                {
-                    if (fdata.IsArray)
-                    {
-                        bool notNull = stream.ReadBool();
-                        if(notNull == false){
-                            fieldInfo[i].SetValue(t,null);
-                        }
-                        else{
-                            var length = stream.ReadUInt32();
-                            var ary = ReadPrimitiveDataArray(stream,fdata.TypeEnum,(int)length);
-                            fieldInfo[i].SetValue(t, ary);
-                        }
-                    }
-                    else
-                    {
-                        var val = ReadPrimitiveData(stream, fdata.TypeEnum);
-                        fieldInfo[i].SetValue(t, val);
-                    }
-                }
-                else
-                {
-                    throw new Exception();
-                }
-            }
-            return t;
-        }
     }
+
+
 }
