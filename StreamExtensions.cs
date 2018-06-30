@@ -1,12 +1,15 @@
 using System;
 using System.IO;
 using System.Text;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Runtime;
+using System.Diagnostics;
 
 namespace Serialization
 {
     public static class StreamExtensions
     {
-
         public static byte ReadByte(this Stream s)
         {
             return (byte)s.ReadByte();
@@ -170,6 +173,21 @@ namespace Serialization
         {
             return s.ReadByte() == 1;
         }
+        
+        public static T[] ReadToArray<T>(this Stream s,int length){
+            var size = Marshal.SizeOf<T>();
+            var bytesize = size * length;
+
+            byte[] temp = new byte[bytesize];
+            s.Read(temp,0,bytesize);
+
+            T[] ary = new T[length];
+            var handle = GCHandle.Alloc(ary, GCHandleType.Pinned);
+            Marshal.Copy(temp,0,handle.AddrOfPinnedObject(),bytesize);
+            handle.Free();
+            return ary;
+        }
+
 
     }
 }

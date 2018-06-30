@@ -8,11 +8,8 @@ using System.Text;
 
 namespace Serialization
 {
-
-
     public enum SerializeTypeEnum : byte
     {
-
         None = 0,
         Byte = 1,
         Bool = 2,
@@ -30,7 +27,6 @@ namespace Serialization
 
     public struct SerializeFieldData : IEquatable<SerializeFieldData>
     {
-
         public object Value;
         public bool IsArray;
         public Type FieldType;
@@ -42,13 +38,15 @@ namespace Serialization
 
         public bool Equals(SerializeFieldData other)
         {
-            if(IsArray != other.IsArray) return false;
-            if(IsPrimitive != other.IsPrimitive) return false;
-            if(IsPrimitive){
-                if(TypeEnum != other.TypeEnum) return false;
+            if (IsArray != other.IsArray) return false;
+            if (IsPrimitive != other.IsPrimitive) return false;
+            if (IsPrimitive)
+            {
+                if (TypeEnum != other.TypeEnum) return false;
             }
-            else{
-                if(FieldType != null && other.FieldType != null && FieldType != other.FieldType) return false;
+            else
+            {
+                if (FieldType != null && other.FieldType != null && FieldType != other.FieldType) return false;
             }
             return true;
         }
@@ -56,29 +54,32 @@ namespace Serialization
 
     public class SerializeDataInfo
     {
-        private static Dictionary<Type,List<FieldInfo>> s_fieldInfo = new Dictionary<Type, List<FieldInfo>>();
+        private static Dictionary<Type, List<FieldInfo>> s_fieldInfo = new Dictionary<Type, List<FieldInfo>>();
         public List<SerializeFieldData> FieldData;
 
-        public static List<FieldInfo> GetFieldInfos(Type t){
+        public static List<FieldInfo> GetFieldInfos(Type t)
+        {
             List<FieldInfo> finfo = null;
-            if(s_fieldInfo.TryGetValue(t,out finfo)){
+            if (s_fieldInfo.TryGetValue(t, out finfo))
+            {
                 return finfo;
             }
             finfo = new List<FieldInfo>(t.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic));
-            s_fieldInfo.Add(t,finfo);
+            s_fieldInfo.Add(t, finfo);
             return finfo;
         }
- 
-        public static SerializeDataInfo Parse<T>(T t){
+
+        public static SerializeDataInfo Parse<T>(T t)
+        {
 
             var datainfo = new SerializeDataInfo();
-            var finfos = GetFieldInfos(typeof(T)); 
+            var finfos = GetFieldInfos(typeof(T));
 
             datainfo.FieldData = new List<SerializeFieldData>();
             for (var i = 0; i < finfos.Count; i++)
             {
                 var finfo = finfos[i];
-                var val = t != null? finfo.GetValue(t): null;
+                var val = t != null ? finfo.GetValue(t) : null;
 
                 var fieldType = finfo.FieldType;
                 var isArray = fieldType.IsArray;
@@ -87,19 +88,25 @@ namespace Serialization
                 var isPrimitive = typeEnum != SerializeTypeEnum.Custom;
 
                 Int32 datasize = 0;
-                if(isPrimitive){
-                    if(typeEnum == SerializeTypeEnum.String){
+                if (isPrimitive)
+                {
+                    if (typeEnum == SerializeTypeEnum.String)
+                    {
 
                     }
-                    else if(isArray){
+                    else if (isArray)
+                    {
                         var ary = val as Array;
-                        datasize = ary.Length * Marshal.SizeOf(elementType);
+                        if (ary == null)
+                            datasize = 0;
+                        else
+                            datasize = ary.Length * Marshal.SizeOf(elementType);
                     }
-                    else{
+                    else
                         datasize = Marshal.SizeOf(elementType);
-                    }
                 }
-                else{
+                else
+                {
                     datasize = -1;
                 }
 
@@ -119,7 +126,6 @@ namespace Serialization
             }
             return datainfo;
         }
-
 
         private static Dictionary<Type, SerializeTypeEnum> s_typeMap = new Dictionary<Type, SerializeTypeEnum>{
             { typeof(byte), SerializeTypeEnum.Byte},
@@ -141,45 +147,56 @@ namespace Serialization
             return SerializeTypeEnum.Custom;
         }
 
-        public void WriteToStream(Stream s){
+        public void WriteToStream(Stream s, bool extraInfo = false)
+        {
             UInt16 count = (UInt16)FieldData.Count;
             s.WriteUInt16(count);
-            foreach(var fdata in FieldData){
+            foreach (var fdata in FieldData)
+            {
                 s.WriteBool(fdata.IsArray);
                 s.WriteByte((byte)fdata.TypeEnum);
-                s.WriteString(fdata.FieldName,Encoding.ASCII);
+                if (extraInfo)
+                    s.WriteString(fdata.FieldName, Encoding.ASCII);
+                else
+                    s.WriteInt32(-1);
             }
         }
 
-        public static SerializeDataInfo ReadFromStream<T>(Stream s){
+        public static SerializeDataInfo ReadFromStream<T>(Stream s)
+        {
             var typeDataInfo = SerializeDataInfo.Parse<T>(default(T));
 
             var deserializeDataInfo = ReadFromStream(s);
-            if(!typeDataInfo.Verify(deserializeDataInfo)){
+            if (!typeDataInfo.Verify(deserializeDataInfo))
+            {
                 throw new Exception("type verify failed!");
             }
-            
+
             return deserializeDataInfo;
         }
 
-        public bool Verify(SerializeDataInfo o){
-            if(this.FieldData == null || o.FieldData == null) throw new Exception();
-            if(this.FieldData.Count != o.FieldData.Count) return false;
+        public bool Verify(SerializeDataInfo o)
+        {
+            if (this.FieldData == null || o.FieldData == null) throw new Exception();
+            if (this.FieldData.Count != o.FieldData.Count) return false;
 
             var count = this.FieldData.Count;
-            for(var i=0;i<count;i++){
-                if(!FieldData[i].Equals(o.FieldData[i])) return false;
+            for (var i = 0; i < count; i++)
+            {
+                if (!FieldData[i].Equals(o.FieldData[i])) return false;
             }
             return true;
         }
 
-        public static SerializeDataInfo  ReadFromStream(Stream s){
+        public static SerializeDataInfo ReadFromStream(Stream s)
+        {
             UInt16 count = s.ReadUInt16();
 
-            var datainfo =new SerializeDataInfo();
-            
+            var datainfo = new SerializeDataInfo();
+
             List<SerializeFieldData> fieldDataList = new List<SerializeFieldData>();
-            for(var i=0;i<count;i++){
+            for (var i = 0; i < count; i++)
+            {
                 bool isarray = s.ReadBool();
                 var typeenum = (SerializeTypeEnum)s.ReadByte();
                 var fname = s.ReadString(Encoding.ASCII);
@@ -190,7 +207,7 @@ namespace Serialization
                 fdata.TypeEnum = typeenum;
                 fdata.IsPrimitive = typeenum != SerializeTypeEnum.Custom;
 
-                
+
                 fieldDataList.Add(fdata);
             }
 
