@@ -3,6 +3,9 @@ using System.IO;
 using System.Text;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.ComponentModel;
+using System.Collections;
+using System.Collections.Generic;
 
 namespace Serialization
 {
@@ -23,17 +26,20 @@ namespace Serialization
         }
 
 
-        private static void WriteData<T>(Stream stream, T t, SerializeTypeInfo dataInfo){
-            WriteData(stream,t,typeof(T),dataInfo);
+        private static void WriteData<T>(Stream stream, T t, SerializeTypeInfo dataInfo)
+        {
+            WriteData(stream, t, typeof(T), dataInfo);
         }
 
-        private static void WriteData(Stream stream, object t,Type type, SerializeTypeInfo dataInfo)
+        private static void WriteData(Stream stream, object t, Type type, SerializeTypeInfo dataInfo)
         {
-            if(t == null){
+            if (t == null)
+            {
                 stream.WriteBool(false);
                 return;
             }
-            else{
+            else
+            {
                 stream.WriteBool(true);
             }
 
@@ -65,28 +71,38 @@ namespace Serialization
                     }
                     else
                     {
-                        Console.WriteLine(">"+ fdata.TypeEnum +" "+fvalue);
+                        Console.WriteLine(">" + fdata.TypeEnum + " " + fvalue);
                         WritePrimitiveData(stream, fdata.TypeEnum, fvalue);
                     }
                 }
                 else
                 {
-                    if (fdata.IsArray)
+                    if (fvalue == null)
                     {
-                        throw new Exception();
+                        stream.WriteBool(false);
                     }
                     else
                     {
-                        if(fvalue == null){
-                            stream.WriteBool(false);
+                        stream.WriteBool(true);
+                        var customTypeIndex = fdata.CustomTypeIndex;
+                        var customTypeInfo = dataInfo.CustomDataTypeInfo[customTypeIndex];
+                        if (fdata.IsArray)
+                        {
+                            var array = fvalue as object[];
+                            stream.WriteInt32(array.Length);
+                            if (array.Length != 0)
+                            {
+                                for (var j = 0; j < array.Length; j++)
+                                {
+                                    WriteData(stream, array[j], fdata.ElementType, customTypeInfo);
+                                }
+                            }
                         }
-                        else{
-                            stream.WriteBool(true);
-                            var customTypeIndex = fdata.CustomTypeIndex;
-                            var customTypeInfo = dataInfo.CustomDataTypeInfo[customTypeIndex];
+                        else
+                        {
                             if (customTypeInfo == null) throw new Exception("Custom datatype info missing");
                             //write value
-                            WriteData(stream, fvalue,fvalue.GetType(), customTypeInfo);
+                            WriteData(stream, fvalue, fvalue.GetType(), customTypeInfo);
                         }
                     }
                 }
@@ -102,19 +118,23 @@ namespace Serialization
         {
             var dataInfo = SerializeTypeInfo.ReadFromStream<T>(stream);
             var refInfo = SerializeTypeInfo.Parse<T>();
-            if(!refInfo.Verify(dataInfo)){
+            if (!refInfo.Verify(dataInfo))
+            {
                 throw new Exception("Invalid type info");
             }
-            return ReadData<T>(stream,refInfo);
+            return ReadData<T>(stream, refInfo);
         }
 
-        private static T ReadData<T>(Stream stream,SerializeTypeInfo dataInfo){
-            return (T)ReadData(typeof(T),stream,dataInfo);
+        private static T ReadData<T>(Stream stream, SerializeTypeInfo dataInfo)
+        {
+            return (T)ReadData(typeof(T), stream, dataInfo);
         }
 
-        private static object ReadData(Type type,Stream stream,SerializeTypeInfo dataInfo){
+        private static object ReadData(Type type, Stream stream, SerializeTypeInfo dataInfo)
+        {
             bool objNotNull = stream.ReadBool();
-            if(!objNotNull){
+            if (!objNotNull)
+            {
                 return null;
             }
             var fieldInfo = SerializeTypeInfo.GetFieldInfos(type);
@@ -148,24 +168,38 @@ namespace Serialization
                 }
                 else
                 {
-                    if (fdata.IsArray)
+                    var notNull = stream.ReadBool();
+                    if (notNull)
                     {
-                        throw new Exception();
+                        var customTypeIndex = fdata.CustomTypeIndex;
+                        var customTypeInfo = dataInfo.CustomDataTypeInfo[customTypeIndex];
+                        if(fdata.IsArray){
+                            var arylength = stream.ReadInt32();
+                            Console.WriteLine(fdata.FieldType);
+                            var array = Array.CreateInstance(fdata.ElementType,arylength);
+
+                            if(arylength == 0){
+                                fieldInfo[i].SetValue(t,array);
+                            }
+                            else{
+                                for(var j=0;j< arylength;j++){
+                                    var obj = ReadData(fdata.ElementType,stream,customTypeInfo);
+                                    array.SetValue(obj,j);
+                                }
+                                fieldInfo[i].SetValue(t,array);
+                            }
+                        }
+                        else{
+                            if (customTypeInfo == null) throw new Exception("Custom datatype info missing");
+                            var eobj = ReadData(fdata.FieldType, stream, customTypeInfo);
+                            fieldInfo[i].SetValue(t, eobj);
+                        }
+
+                        
                     }
                     else
                     {
-                        var notNull =stream.ReadBool();
-                        if(notNull){
-                            var customTypeIndex = fdata.CustomTypeIndex;
-                            var customTypeInfo = dataInfo.CustomDataTypeInfo[customTypeIndex];
-                            if (customTypeInfo == null) throw new Exception("Custom datatype info missing");
-                            var eobj = ReadData(fdata.FieldType,stream,customTypeInfo);
-                            fieldInfo[i].SetValue(t,eobj);
-                        }
-                        else{
-                            fieldInfo[i].SetValue(t,null);
-                        }
-                        
+                        fieldInfo[i].SetValue(t, null);
                     }
                 }
             }

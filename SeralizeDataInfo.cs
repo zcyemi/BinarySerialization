@@ -54,7 +54,6 @@ namespace Serialization
 
     public class SerializeTypeInfo
     {
-
         public Type DataType = null;
         private static Dictionary<Type, List<FieldInfo>> s_fieldInfo = new Dictionary<Type, List<FieldInfo>>();
         public List<SerializeFieldInfo> FieldData;
@@ -77,7 +76,6 @@ namespace Serialization
 
             var refFields = t.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             finfo = new List<FieldInfo>(refFields);
-
             s_fieldInfo.Add(t, finfo);
             return finfo;
         }
@@ -203,7 +201,6 @@ namespace Serialization
         public static SerializeTypeInfo ReadFromStream(Stream s)
         {
             UInt16 count = s.ReadUInt16();
-
             var datainfo = new SerializeTypeInfo();
 
             //FieldInfo

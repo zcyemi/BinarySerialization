@@ -28,6 +28,8 @@ namespace BinarySerialization
             watch.Stop();
             Console.WriteLine("Binary serialize:" + watch.ElapsedTicks +" - "+ watch.ElapsedMilliseconds+"ms");
 
+            Console.WriteLine($"{data.Length}byte");
+
             watch.Restart();
             var jdesdata = JsonConvert.DeserializeObject<TestData>(jser);
             watch.Stop();
@@ -51,13 +53,21 @@ namespace BinarySerialization
     public class AA{
         public int xx;
         public CC c = new CC{cc = 433.9733f};
+
     }
 
     public class TestData
     {
+
+        public CC[] ccary = null;
+        public AA[] aaary =  new AA[0]{};
         public string xxx = "DWDWW";
         public AA s1 = null;
-        public AA s2 = new AA{xx = 42214};
+        public AA[] s2 = new AA[3]{
+            new AA{xx = 192},
+            null,
+            new AA{xx =421},
+        };
 
         public CC classc = new CC{cc = 0.315854f};
     }
