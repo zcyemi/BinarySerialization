@@ -86,6 +86,8 @@ namespace Rigel.Serialization
                 }
                 var data = new SerializeFieldInfo
                 {
+                    FieldActive = true,
+                    HasLabel = false,
                     FieldType = fieldType,
                     ElementType = elementType,
                     IsArray = isArray,
@@ -127,12 +129,7 @@ namespace Rigel.Serialization
             s.WriteUInt16(count);
             foreach (var fdata in FieldData)
             {
-                s.WriteBool(fdata.IsArray);
-                s.WriteByte((byte)fdata.TypeEnum);
-                if (extraInfo)
-                    s.WriteString(fdata.FieldName, Encoding.ASCII);
-                else
-                    s.WriteInt32(-1);
+                fdata.WriteToStream(s,extraInfo);
             }
             //CustomType
             byte customTypeCount = (byte)CustomDataTypeInfo.Count;
@@ -164,15 +161,7 @@ namespace Rigel.Serialization
             List<SerializeFieldInfo> fieldDataList = new List<SerializeFieldInfo>();
             for (var i = 0; i < count; i++)
             {
-                bool isarray = s.ReadBool();
-                var typeenum = (SerializeTypeEnum)s.ReadByte();
-                var fname = s.ReadString(Encoding.ASCII);
-
-                var fdata = new SerializeFieldInfo();
-                fdata.FieldName = fname;
-                fdata.IsArray = isarray;
-                fdata.TypeEnum = typeenum;
-                fdata.IsPrimitive = typeenum != SerializeTypeEnum.Custom;
+                var fdata = SerializeFieldInfo.ReadFromStream(s);
                 fieldDataList.Add(fdata);
             }
             datainfo.FieldData = fieldDataList;
