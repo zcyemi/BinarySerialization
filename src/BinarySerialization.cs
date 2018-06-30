@@ -7,7 +7,7 @@ using System.ComponentModel;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace Serialization
+namespace Rigel.Serialization
 {
 
     public static class BinarySeralizer
@@ -71,7 +71,6 @@ namespace Serialization
                     }
                     else
                     {
-                        Console.WriteLine(">" + fdata.TypeEnum + " " + fvalue);
                         WritePrimitiveData(stream, fdata.TypeEnum, fvalue);
                     }
                 }
@@ -175,7 +174,6 @@ namespace Serialization
                         var customTypeInfo = dataInfo.CustomDataTypeInfo[customTypeIndex];
                         if(fdata.IsArray){
                             var arylength = stream.ReadInt32();
-                            Console.WriteLine(fdata.FieldType);
                             var array = Array.CreateInstance(fdata.ElementType,arylength);
 
                             if(arylength == 0){

@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 using System.Runtime;
 using System.Diagnostics;
 
-namespace Serialization
+namespace Rigel.Serialization
 {
     public static class StreamExtensions
     {

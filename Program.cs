@@ -1,9 +1,10 @@
 using System;
 using System.IO;
-using Serialization;
 using System.Diagnostics;
 
 using Newtonsoft.Json;
+
+using Rigel.Serialization;
 
 namespace BinarySerialization
 {

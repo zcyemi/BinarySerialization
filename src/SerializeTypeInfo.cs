@@ -7,51 +7,8 @@ using System.IO;
 using System.Text;
 using System.Linq;
 
-namespace Serialization
+namespace Rigel.Serialization
 {
-    public enum SerializeTypeEnum : byte
-    {
-        None = 0,
-        Byte = 1,
-        Bool = 2,
-        Int16 = 3,
-        Int32 = 4,
-        Int64 = 5,
-        UInt16 = 6,
-        UInt32 = 7,
-        UInt64 = 8,
-        Float = 9,
-        Double = 10,
-        String = 11,
-        Custom = 12,
-    }
-
-    public struct SerializeFieldInfo : IEquatable<SerializeFieldInfo>
-    {
-        public bool IsArray;
-        public Type FieldType;
-        public Type ElementType;
-        public bool IsPrimitive;
-        public string FieldName;
-        public SerializeTypeEnum TypeEnum;
-        public byte CustomTypeIndex;
-
-        public bool Equals(SerializeFieldInfo other)
-        {
-            if (IsArray != other.IsArray) return false;
-            if (IsPrimitive != other.IsPrimitive) return false;
-            if (IsPrimitive)
-            {
-                if (TypeEnum != other.TypeEnum) return false;
-            }
-            else
-            {
-                if (FieldType != null && other.FieldType != null && FieldType != other.FieldType) return false;
-            }
-            return true;
-        }
-    }
-
     public class SerializeTypeInfo
     {
         public Type DataType = null;
