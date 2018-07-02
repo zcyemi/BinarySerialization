@@ -110,7 +110,9 @@ namespace Rigel.Serialization
 
         public static T Deserialize<T>(byte[] data)
         {
-            return Deserialize<T>(new MemoryStream(data));
+            using(MemoryStream s = new MemoryStream(data)){
+                return Deserialize<T>(s);
+            }
         }
 
         public static T Deserialize<T>(Stream stream)
