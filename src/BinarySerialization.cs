@@ -87,13 +87,13 @@ namespace Rigel.Serialization
                         var customTypeInfo = dataInfo.CustomDataTypeInfo[customTypeIndex];
                         if (fdata.IsArray)
                         {
-                            var array = fvalue as object[];
+                            var array = fvalue as Array;
                             stream.WriteInt32(array.Length);
                             if (array.Length != 0)
                             {
                                 for (var j = 0; j < array.Length; j++)
                                 {
-                                    WriteData(stream, array[j], fdata.ElementType, customTypeInfo);
+                                    WriteData(stream, array.GetValue(j), fdata.ElementType, customTypeInfo);
                                 }
                             }
                         }
